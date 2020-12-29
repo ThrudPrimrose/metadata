@@ -17,5 +17,4 @@ do
     echo $bettername
 
     yes | ffmpeg -i "${f}" "../images/${bettername}.jpg"
-    #eyeD3 --write-images=../images "${f}"
 done

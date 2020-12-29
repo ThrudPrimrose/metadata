@@ -1,60 +1,72 @@
 import mutagen
-from mutagen.mp3 import MP3
-from mutagen.id3 import ID3, TIT2
-import os 
+import eyed3
+import os
 import csv
+import sox
 
-#use if no metadata available
-def splitter(filename):
-    culled = filename[:-4]
-    culled = filename[12:len(culled)]
-    s = culled.split(" - ")
-    return [s[1],s[0],"",""]
 
-def rmmp3(filename):
-    return filename[:-4]
+def sox_length(path):
+    try:
+        length = sox.file_info.duration(path)
+        return length
+    except:
+        return None
 
-def reader(directory):
-    with open("song_metadata.csv",mode="w") as song_metadata:
-        writer = csv.writer(song_metadata, delimiter=",", quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow(["Title","Artist","Album","Year"])
 
-        for filename in os.listdir(directory):
+def extract(path):
+    with open("song_metadata_i.csv", mode="w") as song_metadata:
+        writer = csv.writer(song_metadata, delimiter=",",
+                            quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(["FileName", "Title", "Artist",
+                         "Album", "Year", "Genre", "BPM", "BitRate", "Duration"])
+
+        for filename in os.listdir(path):
             if filename.endswith(".mp3"):
-                #print(filename)
-                fullname = os.path.join(directory,filename)
-                dic = mutagen.File(fullname).keys()
-                lookfor=["TIT2","TPE1","TPE2","TALB","TDRC"]
-                towrite=[]
-                tpe1=""
-                tpe2=""
-                for s in lookfor:
-                    if mutagen.File(fullname).tags is None:
-                        towrite = splitter(fullname)
-                        continue
+                towrite = []
+                fullname = os.path.join(path, filename)
+                audiofile = eyed3.load(fullname)
+                towrite.append(filename)
+                # print(audiofile)
+                # print(audiofile.tag.title)
+                towrite.append(str(audiofile.tag.title))
+                # print(audiofile.tag.artist)
+                towrite.append(str(audiofile.tag.artist))
+                # print(audiofile.tag.album)
+                towrite.append(str(audiofile.tag.album))
+                # print(audiofile.tag.recording_date)
+                towrite.append(str(audiofile.tag.recording_date))
+                if(str(audiofile.tag.genre) == "None"):
+                    # print("None")
+                    towrite.append("None")
+                else:
+                    if(str(audiofile.tag.genre)[0] == "("):
+                        towrite.append(str(audiofile.tag.genre)[4:])
                     else:
-                        for frame in mutagen.File(fullname).tags.getall(s):
-                            if s=="TPE1":
-                                tpe1=frame
-                            elif s =="TPE2":
-                                tpe2=frame
-                                if tpe1==tpe2:
-                                    towrite.append(tpe1)
-                                else:
-                                    ss = str(tpe1) + " " + str(tpe2)
-                                    towrite.append(ss)
-                            else:
-                                towrite.append(frame)
-                            #print(frame)
-
+                        # print(str(audiofile.tag.genre)[4:])
+                        towrite.append(str(audiofile.tag.genre))
+                # print(audiofile.tag.bpm)
+                towrite.append(str(audiofile.tag.bpm))
+                # print(audiofile.info.bit_rate[1])
+                towrite.append(str(audiofile.info.bit_rate[1]))
+                length = sox_length(fullname)
+                # print(length)
+                # print("duration: " + str(int(length/60)) +
+                #     ':' + str(int(length % 60)))
+                towrite.append(str(int(length/60)) +
+                               ':' + str(int(length % 60)))
                 writer.writerow(towrite)
+
+    # rm "
+    text = open('song_metadata_i.csv', 'r', encoding="utf-8")
+    text = ''.join([i for i in text]).replace('"', "")
+    x = open("song_metadata.csv", "w")
+    x.writelines(text)
+    x.close()
+    os.remove("song_metadata_i.csv")
 
 
 def main():
-    directory = "example set"
-    reader(directory)
-    #imager(directory)
-
+    extract("example set")
 
 
 if __name__ == "__main__":
